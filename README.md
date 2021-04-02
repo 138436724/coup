@@ -1,0 +1,1 @@
+使用nonebot2 + go-cqhttp
