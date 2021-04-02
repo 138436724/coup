@@ -1,14 +1,6 @@
-from random import shuffle
-from parse import parse
-
-from nonebot.rule import to_me
-from nonebot import on_command, on_endswith, on_startswith, on_regex
-from nonebot.typing import T_State
-from nonebot.adapters.cqhttp import Bot, Event, MessageSegment
-
-from .player import Player
-from .identity_cards import tax_duchess, rob_captain
 from .game_features import *
+from .identity_cards import *
+from .player import Player
 
 # 游戏是否开始
 game_flag = False
@@ -16,8 +8,11 @@ game_flag = False
 players = {}
 # 身份牌
 identities = ['公爵 ', '队长 ', '夫人 ', '刺客 ', '大使 '] * 4
+# 身份牌墓地
+card_graveyard = []
 
 help_documentation = on_command("帮助", rule=to_me(), priority=0)
+
 start_game = on_command("开始", rule=to_me(), priority=1)
 draw_cards = on_endswith("人", rule=to_me(), priority=1)
 give_cards = on_regex("^[1-7一二三四五六七两俩]", rule=to_me(), priority=2)
@@ -25,58 +20,6 @@ change_cards = on_startswith("换牌", rule=to_me(), priority=2)
 die_cards = on_startswith("死亡", rule=to_me(), priority=2)
 inquire_money = on_command("查询", rule=to_me(), priority=1)
 end_game = on_command("结束", rule=to_me(), priority=1)
-
-get_one_coin = on_command("收入", aliases={"拿1", "拿一"}, rule=to_me(), priority=2)
-get_two_coins = on_command("援助", aliases={"拿2", "拿二"}, rule=to_me(), priority=2)
-get_three_coins = on_command("公爵", aliases={"拿3", "拿三", "税收"}, rule=to_me(), priority=2)
-lost_two_coins = on_startswith("抢", rule=to_me(), priority=2)
-
-
-@lost_two_coins.handle()
-async def _(bot: Bot, event: Event, state: T_State):
-    global game_flag, players, identities
-    if game_flag:
-        was_robben_qq_number = parse('[CQ:at,qq={}]', str(event.get_message()))
-        print(was_robben_qq_number)
-        print(was_robben_qq_number)
-        rot_qq_number = event.get_user_id()
-        await rob_captain(players[rot_qq_number], players[was_robben_qq_number])
-        await lost_two_coins.finish("")
-    else:
-        await lost_two_coins.finish("先开始游戏哦")
-
-
-@get_one_coin.handle()
-async def _(bot: Bot, event: Event, state: T_State):
-    global game_flag, players, identities
-    if game_flag:
-        qq_number = event.get_user_id()
-        await players[qq_number].income()
-        await get_one_coin.finish(f"你现在有{players[qq_number].wealth}个币了", at_sender=True)
-    else:
-        await get_one_coin.finish("先开始游戏哦")
-
-
-@get_two_coins.handle()
-async def _(bot: Bot, event: Event, state: T_State):
-    global game_flag, players, identities
-    if game_flag:
-        qq_number = event.get_user_id()
-        await players[qq_number].help()
-        await get_two_coins.finish(f"你现在有{players[qq_number].wealth}个币了", at_sender=True)
-    else:
-        await get_two_coins.finish("先开始游戏哦")
-
-
-@get_three_coins.handle()
-async def _(bot: Bot, event: Event, state: T_State):
-    global game_flag, players, identities
-    if game_flag:
-        qq_number = event.get_user_id()
-        await tax_duchess(players[qq_number])
-        await get_three_coins.finish(f"你现在有{players[qq_number].wealth}个币了", at_sender=True)
-    else:
-        await get_three_coins.finish("先开始游戏哦")
 
 
 @help_documentation.handle()
@@ -89,7 +32,7 @@ async def _(bot: Bot, event: Event):
            '可以用“查询”来查询各位的币数\n' \
            '死亡命令是”死亡第n张“\n' \
            '支持命令”结束“快速结束\n' \
-           '详情参考http://www.yihubg.com/rule-details/7f81295f-7160-4261-b436-d385395b9b22'
+           '详情规则参考http://www.yihubg.com/rule-details/7f81295f-7160-4261-b436-d385395b9b22'
     await help_documentation.finish(text)
 
 
@@ -155,8 +98,8 @@ async def _(bot: Bot, event: Event, state: T_State):
         if num != -1:
             if len(players[qq_number].identity) != 0:
                 identities.append(players[qq_number].identity.pop(num - 1))
-                shuffle(identities)
                 players[qq_number].identity.append(identities.pop())
+                shuffle(identities)
                 await change_cards.finish(user_id=int(qq_number), message=" ".join(players[qq_number].identity),
                                           message_type="private")
             else:
@@ -176,14 +119,16 @@ async def _(bot: Bot, event: Event, state: T_State):
         qq_number = event.get_user_id()
         if num != -1:
             if len(players[qq_number].identity) == 2:
-                identities.append(players[qq_number].identity.pop(num - 1))
+                card_graveyard.append(players[qq_number].identity.pop(num - 1))
+                # identities.append(players[qq_number].identity.pop(num - 1))
                 await die_cards.finish(user_id=int(qq_number), message=" ".join(players[qq_number].identity),
                                        message_type="private")
             elif len(players[qq_number].identity) == 1:
-                identities.append(players[qq_number].identity.pop())
+                card_graveyard.append(players[qq_number].identity.pop())
+                # identities.append(players[qq_number].identity.pop())
                 await die_cards.finish("你没了啊", at_sender=True)
             else:
-                await die_cards.finish("你已经没有身份牌了啊")
+                await die_cards.finish("你已经没有身份牌了诶")
         else:
             await die_cards.finish("序号错误")
     else:
@@ -207,10 +152,11 @@ async def _(bot: Bot, event: Event, state: T_State):
 # 结束游戏
 @end_game.handle()
 async def _(bot: Bot, event: Event, state: T_State):
-    global game_flag, players, identities
+    global game_flag, players, identities, card_graveyard
     game_flag = False
     players.clear()
     identities = ['公爵 ', '队长 ', '夫人 ', '刺客 ', '大使 '] * 4
+    card_graveyard.clear()
     await end_game.finish("再来一把?")
 
 # players_library = {}
