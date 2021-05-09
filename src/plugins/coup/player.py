@@ -17,30 +17,3 @@ class Player:
     '''
     wealth = 0
     identity = []
-
-    async def get_one_coin(self):
-        self.wealth += 1
-
-    async def get_two_coins(self):
-        self.wealth += 2
-
-    async def get_three_coins(self):
-        self.wealth += 2
-
-    async def rob_two_coins(self, flag: bool):
-        if flag:
-            self.wealth += 2
-        else:
-            self.wealth += 1
-
-    async def was_robben(self):
-        self.wealth -= 2
-        if self.wealth < 0:
-            self.wealth = 0
-
-    # 是否有币由其他程序判断
-    async def coup(self):
-        self.wealth -= 7
-
-    async def stab(self):
-        self.wealth -= 3
