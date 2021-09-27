@@ -10,6 +10,10 @@ class Master:
     # 游戏是否开始、玩家数据、身份牌
     players = {}
     player_num = 0
+    is_block = False  # 是否有阻止
+    identity_card = ""  # 需要换掉的身份
+    # [受害者QQ, 操作, 操作人QQ, 阻止人QQ, 质疑人QQ(""代表无人)]
+    action_chain = ["", "", "", "", ""]
     identities = ['公爵 ', '队长 ', '夫人 ', '刺客 ', '大使 '] * 4
 
     def __init__(self, num):
@@ -45,7 +49,7 @@ class Master:
         pass
 
     # 检查政变和刺杀是否有足够金币
-    async def check_operation(self, qq_number, action):
+    async def check_coins(self, qq_number, action):
         player = self.players[qq_number]
         if action == "政变":
             # 在外面声明受害者开牌, 这里只减少金币
@@ -55,7 +59,8 @@ class Master:
             return player.coins >= 3
 
     # 处理正常操作,参数为: 受害者QQ, 操作, 操作人QQ
-    async def operation_event(self, qq_number, action, QQ_number):
+    async def operation_event(self):
+        qq_number, action, QQ_number = self.action_chain[:3]
         player = self.players[QQ_number]
         if action == "收入":
             await player.get_one_coin()
@@ -84,42 +89,42 @@ class Master:
         return set(player.open_identities) & set(identity)
 
     # 参数为是否有阻止, 操作链条
-    async def doubt_event(self, is_block: bool, action: list):
+    async def doubt_event(self):
         identity = []
 
-        if is_block:  # 有阻止有质疑
+        if self.is_block:  # 有阻止有质疑
 
-            if action[1] == "援助":
+            if self.action_chain[1] == "援助":
                 identity = ["公爵"]
-            elif action[1] == "抢夺":
+            elif self.action_chain[1] == "抢夺":
                 identity = ["大使", "队长"]
-            elif action[1] == "刺杀":
+            elif self.action_chain[1] == "刺杀":
                 identity = ["夫人"]
 
-            if await self.doubt(action[3], identity):  # 阻止人QQ, 身份
+            if await self.doubt(self.action_chain[3], identity):  # 阻止人QQ, 身份
                 # 质疑失败, 质疑者打开一张牌, 阻止者换牌, 无事发生
                 # 换牌、开牌要求外界玩家声明, 在外界处理
-                return [action[4], action[3], identity]
+                return [self.action_chain[4], self.action_chain[3], identity]
             else:
                 # 质疑成功, 阻止者打开一张牌, 操作继续
-                await self.operation_event(*action[:3])
-                return [action[3]]
+                await self.operation_event()
+                return [self.action_chain[3]]
 
         else:  # 只有质疑
 
-            if action[1] == "税收":
+            if self.action_chain[1] == "税收":
                 identity = ["公爵"]
-            elif action[1] == "抢夺":
+            elif self.action_chain[1] == "抢夺":
                 identity = ["大使"]
-            elif action[1] == "刺杀":
+            elif self.action_chain[1] == "刺杀":
                 identity = ["刺客"]
-            elif action[1] == "换牌":
+            elif self.action_chain[1] == "换牌":
                 identity = ["大使"]
 
-            if await self.doubt(action[2], identity):  # 操作者QQ, 身份
+            if await self.doubt(self.action_chain[2], identity):  # 操作者QQ, 身份
                 # 质疑失败, 质疑者打开一张牌, 操作者换牌, 操作继续
-                await self.operation_event(*action[:3])
-                return [action[4], action[2], identity]
+                await self.operation_event()
+                return [self.action_chain[4], self.action_chain[2], identity]
             else:
                 # 质疑成功, 操作者打开一张牌, 无事发生
-                return [action[2]]
+                return [self.action_chain[2]]

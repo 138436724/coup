@@ -29,7 +29,6 @@ class Player:
     async def coup(self):
         self.coins -= 7
 
-
     # 公爵(税收、阻止)
     async def get_three_coins(self):
         self.coins += 3
