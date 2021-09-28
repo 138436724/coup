@@ -211,7 +211,8 @@ async def _(bot: Bot, event: Event):
     # 检查金币数量
     if masters[room_number].check_coins(qq_number, "政变"):
         QQ_number = parse("政变[CQ:at,qq={}]", str(event.get_message()))[0]
-        await masters[room_number].operation_event(qq_number, "政变", QQ_number)
+        masters[room_number].action_chain[:3] = [QQ_number, "政变", qq_number]
+        await masters[room_number].operation_event()
         await lost_seven_coins.finish(f"{QQ_number}开一张牌吧")
     else:
         await lost_seven_coins.finish("没钱!没钱!")
@@ -230,9 +231,9 @@ async def _(bot: Bot, event: Event):
     # 检查金币数量
     if masters[room_number].check_coins(qq_number, "刺杀"):
         QQ_number = parse("刺杀[CQ:at,qq={}]", str(event.get_message()))[0]
-        await masters[room_number].operation_event(qq_number, "刺杀", QQ_number)
+        # await masters[room_number].operation_event(qq_number, "刺杀", QQ_number)
         # 写入操作链, [受害者QQ, 操作, 操作人QQ, 阻止人QQ, 质疑人QQ)]
-        masters[room_number].action_chain = [QQ_number, "刺杀", qq_number, "", ""]
+        masters[room_number].action_chain[:3] = [QQ_number, "刺杀", qq_number]
     else:
         await lost_seven_coins.finish("没钱!没钱!")
 
@@ -252,16 +253,67 @@ async def _(bot: Bot, event: Event):
     masters[room_number].action_chain[3] = qq_number
 
 
+# 收入
+get_one_coin = on_command("收入", aliases={"拿1", "拿一"}, priority=1)
+
+
+@get_one_coin.handle()
+async def _(bot: Bot, event: Event):
+    global masters, all_player
+    # 获取房间号
+    qq_number = event.get_user_id()
+    room_number = all_player.get(qq_number, "")
+    masters[room_number].action_chain[:3] = ["", "收入", qq_number]
+    await masters[room_number].operation_event()
+
+
+# 援助
+get_two_coins = on_command("援助", aliases={"拿2", "拿二"}, priority=1)
+
+
+@get_two_coins.handle()
+async def _(bot: Bot, event: Event):
+    global masters, all_player
+    # 获取房间号
+    qq_number = event.get_user_id()
+    room_number = all_player.get(qq_number, "")
+    masters[room_number].action_chain[:3] = ["", "援助", qq_number]
+
+
+get_three_coins = on_command("公爵", aliases={"拿3", "拿三", "税收"}, priority=1)
+
+
+# 公爵
+@get_three_coins.handle()
+async def _(bot: Bot, event: Event):
+    global masters, all_player
+    # 获取房间号
+    qq_number = event.get_user_id()
+    room_number = all_player.get(qq_number, "")
+    masters[room_number].action_chain[:3] = ["", "税收", qq_number]
+
+
+lost_two_coins = on_startswith("抢", priority=2)
+
+
+# 队长
+@lost_two_coins.handle()
+async def _(bot: Bot, event: Event, state: T_State):
+    global masters, all_player
+    # 获取房间号
+    qq_number = event.get_user_id()
+    room_number = all_player.get(qq_number, "")
+    QQ_number = parse("抢[CQ:at,qq={}]", str(event.get_message()))[0]
+    # await masters[room_number].operation_event(qq_number, "刺杀", QQ_number)
+    # 写入操作链, [受害者QQ, 操作, 操作人QQ, 阻止人QQ, 质疑人QQ)]
+    masters[room_number].action_chain[:3] = [QQ_number, "刺杀", qq_number]
+
 # 如果identity_card有值, 就是要换掉对应的牌
 # 所有操作先加入操作链, 时刻注意is_block和identity_card, 涉及刺杀和政变先检查金币数量
 # 如何at别人message += MessageSegment.at(qq_number) + MessageSegment.text(" ") + f'{players[qq_number].wealth}\n'
 
 
 # change_cards = on_startswith("换牌", rule=to_me(), priority=2)
-# get_one_coin = on_command("收入", aliases={"拿1", "拿一"}, rule=to_me(), priority=2)
-# get_two_coins = on_command("援助", aliases={"拿2", "拿二"}, rule=to_me(), priority=2)
-# get_three_coins = on_command("公爵", aliases={"拿3", "拿三", "税收"}, rule=to_me(), priority=2)
-# lost_two_coins = on_startswith("抢", rule=to_me(), priority=2)
 #
 #
 # # 换牌
@@ -284,53 +336,3 @@ async def _(bot: Bot, event: Event):
 #             await change_cards.finish("序号错误")
 #     else:
 #         await change_cards.finish("请先开始游戏")
-#
-#
-# @get_one_coin.handle()
-# async def _(bot: Bot, event: Event, state: T_State):
-#     global game_start, players, identities
-#     if game_flag:
-#         qq_number = event.get_user_id()
-#         await players[qq_number].get_one_coin()
-#         await get_one_coin.finish(f"你现在有{players[qq_number].wealth}个币了", at_sender=True)
-#     else:
-#         await get_one_coin.finish("先开始游戏哦")
-#
-#
-# @get_two_coins.handle()
-# async def _(bot: Bot, event: Event, state: T_State):
-#     global game_start, players, identities
-#     if game_flag:
-#         qq_number = event.get_user_id()
-#         await players[qq_number].get_two_coins()
-#         await get_two_coins.finish(f"你现在有{players[qq_number].wealth}个币了", at_sender=True)
-#     else:
-#         await get_two_coins.finish("先开始游戏哦")
-#
-#
-# # 公爵
-# @get_three_coins.handle()
-# async def _(bot: Bot, event: Event, state: T_State):
-#     global game_start, players, identities
-#     if game_flag:
-#         qq_number = event.get_user_id()
-#         players[qq_number].get_three_coins()
-#         await get_three_coins.finish(f"你现在有{players[qq_number].wealth}个币了", at_sender=True)
-#     else:
-#         await get_three_coins.finish("先开始游戏哦")
-#
-#
-# # 队长
-# @lost_two_coins.handle()
-# async def _(bot: Bot, event: Event, state: T_State):
-#     global game_start, players, identities
-#     if game_flag:
-#         was_robben_qq_number = parse("抢[CQ:at,qq={}]", str(event.get_message()))[0]  # todo
-#         print(int(was_robben_qq_number))
-#         qq_number = event.get_user_id()
-#         if players[was_robben_qq_number].wealth >= 2:
-#             players[qq_number].rob_two_coins(True)
-#         players[was_robben_qq_number].was_robben()
-#         await lost_two_coins.finish("")
-#     else:
-#         await lost_two_coins.finish("先开始游戏哦")
