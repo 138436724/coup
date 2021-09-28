@@ -49,8 +49,14 @@ class Player:
             return 0
 
     # 大使(换牌，阻止)
-    async def change_two_cards(self):
-        pass  # todo
+    async def change_two_cards(self, cards: list):
+        self.close_identities += cards
+        return self.close_identities
+
+    # 删牌
+    async def delete_two_cards(self, num):
+        card = [self.close_identities.pop(num[0] - 1), self.close_identities.pop(num[1] - 1)]
+        return card
 
     # 刺客(刺杀)
     async def stab(self):

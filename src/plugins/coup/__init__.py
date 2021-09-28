@@ -139,6 +139,22 @@ async def _(bot: Bot, event: Event, state: T_State):
 
 
 # ======================游戏逻辑====================== #
+# 关于被质疑者的换牌
+change_one_cards = on_startswith("换牌", priority=1)
+
+
+# 换牌
+@change_one_cards.handle()
+async def _(bot: Bot, event: Event, state: T_State):
+    global masters, all_player
+    # 获取房间号
+    qq_number = event.get_user_id()
+    room_number = all_player.get(qq_number, "")
+    card_num = int(str(event.get_message())[2:])
+    cards = await masters[room_number].change_one_card(qq_number, card_num)
+    await change_one_cards.finish(user_id=int(qq_number), message=" ".join(cards), message_type="private")
+
+
 # 质疑的处理
 doubt = on_command("质疑", priority=1)
 
@@ -157,12 +173,19 @@ async def _(bot: Bot, event: Event):
     result = await masters[room_number].doubt_event()
     masters[room_number].is_block = False
     # action_chain = ["", "", "", "", ""]
+
+    # 判断大使换牌
+    cards = masters[room_number].ambassador_cards
+    if cards:
+        masters[room_number].ambassador_cards = []
+        await bot.send_private_msg(user_id=int(qq_number), message=" ".join(cards))
+
     if len(result) == 3:
-        await doubt.finish(f"{result[0]}质疑失败，选择开牌; {result[1]}选择换牌")
         masters[room_number].identity_card = result[-1]
+        await doubt.finish(f"{result[0]}质疑失败，选择开牌; {result[1]}选择换牌")
     else:
-        await doubt.finish(f"质疑成功, {result[0]}选择开牌")
         masters[room_number].identity_card = ""
+        await doubt.finish(f"质疑成功, {result[0]}选择开牌")
 
 
 # 强制结算
@@ -182,6 +205,13 @@ async def _(bot: Bot, event: Event):
     else:
         await masters[room_number].operation_event()
     # action_chain = ["", "", "", "", ""]
+    # 判断大使身份
+    cards = masters[room_number].ambassador_cards
+    if cards:
+        masters[room_number].ambassador_cards = []
+        await go_pass.finish(user_id=int(qq_number), message=" ".join(cards), message_type="private")
+
+    await go_pass.finish()
 
 
 # 开牌
@@ -196,6 +226,7 @@ async def _(bot: Bot, event: Event):
     room_number = all_player.get(qq_number, "")
     num = await check_num(str(event.get_message()))
     await masters[room_number].open_card(num)
+    await open_card.finish()
 
 
 # 政变
@@ -216,6 +247,7 @@ async def _(bot: Bot, event: Event):
         await lost_seven_coins.finish(f"{QQ_number}开一张牌吧")
     else:
         await lost_seven_coins.finish("没钱!没钱!")
+    await lost_seven_coins.finish()
 
 
 # 刺杀
@@ -236,6 +268,7 @@ async def _(bot: Bot, event: Event):
         masters[room_number].action_chain[:3] = [QQ_number, "刺杀", qq_number]
     else:
         await lost_seven_coins.finish("没钱!没钱!")
+    await lost_three_coins.finish()
 
 
 # 阻止
@@ -251,6 +284,7 @@ async def _(bot: Bot, event: Event):
     masters[room_number].is_block = True
     # 阻止人写入操作链
     masters[room_number].action_chain[3] = qq_number
+    await block_operation.finish()
 
 
 # 收入
@@ -265,6 +299,7 @@ async def _(bot: Bot, event: Event):
     room_number = all_player.get(qq_number, "")
     masters[room_number].action_chain[:3] = ["", "收入", qq_number]
     await masters[room_number].operation_event()
+    await get_one_coin.finish()
 
 
 # 援助
@@ -278,6 +313,7 @@ async def _(bot: Bot, event: Event):
     qq_number = event.get_user_id()
     room_number = all_player.get(qq_number, "")
     masters[room_number].action_chain[:3] = ["", "援助", qq_number]
+    await get_two_coins.finish()
 
 
 get_three_coins = on_command("公爵", aliases={"拿3", "拿三", "税收"}, priority=1)
@@ -291,14 +327,15 @@ async def _(bot: Bot, event: Event):
     qq_number = event.get_user_id()
     room_number = all_player.get(qq_number, "")
     masters[room_number].action_chain[:3] = ["", "税收", qq_number]
+    await get_three_coins.finish()
 
 
-lost_two_coins = on_startswith("抢", priority=2)
+lost_two_coins = on_startswith("抢", priority=1)
 
 
 # 队长
 @lost_two_coins.handle()
-async def _(bot: Bot, event: Event, state: T_State):
+async def _(bot: Bot, event: Event):
     global masters, all_player
     # 获取房间号
     qq_number = event.get_user_id()
@@ -307,32 +344,38 @@ async def _(bot: Bot, event: Event, state: T_State):
     # await masters[room_number].operation_event(qq_number, "刺杀", QQ_number)
     # 写入操作链, [受害者QQ, 操作, 操作人QQ, 阻止人QQ, 质疑人QQ)]
     masters[room_number].action_chain[:3] = [QQ_number, "刺杀", qq_number]
+    await lost_two_coins.finish()
+
 
 # 如果identity_card有值, 就是要换掉对应的牌
 # 所有操作先加入操作链, 时刻注意is_block和identity_card, 涉及刺杀和政变先检查金币数量
 # 如何at别人message += MessageSegment.at(qq_number) + MessageSegment.text(" ") + f'{players[qq_number].wealth}\n'
 
 
-# change_cards = on_startswith("换牌", rule=to_me(), priority=2)
-#
-#
-# # 换牌
-# @change_cards.handle()
-# async def _(bot: Bot, event: Event, state: T_State):
-#     global game_start, players, identities
-#     if game_flag:
-#         num = await check_num(str(event.get_message()))
-#         qq_number = event.get_user_id()
-#         if num != -1:
-#             if len(players[qq_number].identity) != 0:
-#                 identities.append(players[qq_number].identity.pop(num - 1))
-#                 players[qq_number].identity.append(identities.pop())
-#                 shuffle(identities)
-#                 await change_cards.finish(user_id=int(qq_number), message=" ".join(players[qq_number].identity),
-#                                           message_type="private")
-#             else:
-#                 await change_cards.finish("你已经没有手牌了诶")
-#         else:
-#             await change_cards.finish("序号错误")
-#     else:
-#         await change_cards.finish("请先开始游戏")
+# 关于大使的换牌
+change_two_cards = on_command("大使", priority=1)
+
+
+@change_two_cards.handle()
+async def _(bot: Bot, event: Event, state: T_State):
+    global masters, all_player
+    # 获取房间号
+    qq_number = event.get_user_id()
+    room_number = all_player.get(qq_number, "")
+    # 写入操作链, [受害者QQ, 操作, 操作人QQ, 阻止人QQ, 质疑人QQ)]
+    masters[room_number].action_chain[:3] = ["", "大使", qq_number]
+    await change_two_cards.finish()
+
+
+delete_cards = on_startswith("删", priority=1)
+
+
+@delete_cards.handle()
+async def _(bot: Bot, event: Event, state: T_State):
+    global masters, all_player
+    # 获取房间号
+    qq_number = event.get_user_id()
+    room_number = all_player.get(qq_number, "")
+    card_num = [int(x) for x in list(str(event.get_message())[1:])]
+    await masters[room_number].delete_cards(qq_number, card_num)
+    await delete_cards.finish()
