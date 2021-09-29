@@ -20,10 +20,3 @@ async def check_num(message: str) -> int:
         return 7
     else:
         return -1
-
-# 换牌
-# async def change_identity(qq_number: str, num: int):
-#     global players_library, identity_library
-#     identity_library.append(players_library[qq_number].identities.pop(num))
-#     shuffle(identity_library)
-#     players_library[qq_number].identities.append(identity_library.pop(0))

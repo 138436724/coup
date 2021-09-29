@@ -20,13 +20,21 @@ Docs = on_command("帮助", rule=to_me(), aliases={"帮助文档", }, priority=0
 
 @Docs.handle()
 async def _(bot: Bot):
-    text = '创建房间命令是”开始“\n' \
-           '选择人数命令是“n人”\n' \
-           '加入房间的命令是“n“\n' \
-           '换牌命令是”换牌第n张“\n' \
-           '可以用“查询”来查询各位的币数\n' \
-           '死亡命令是”死亡第n张“\n' \
-           '支持命令”结束“快速结束\n' \
+    text = '创建房间直接使用“n人”\n' \
+           '加入房间的命令是“进XX“\n' \
+           '查询已经打开的牌和玩家金币使用”查询“\n' \
+           '支持强制结束”结束“'\
+           '换牌分两种\n:' \
+           '    一是被质疑的换牌命令”换牌n“\n' \
+           '    二是大使的换牌, 命令是”大使“, 此时去掉多余的牌使用”删mn“\n' \
+           '质疑使用”质疑“\n' \
+           '由于对质疑的支持, 凡是不涉及质疑的操作需要使用”过“强制结算\n' \
+           '翻牌使用”开n“\n' \
+           '政变需要使用”政变@“\n' \
+           '刺杀需要使用”刺杀@“\n' \
+           '阻止、收入、援助、公爵 使用对应名称作为命令\n' \
+           '抢夺也是”抢@“\n' \
+           '!!! 注意:当前阶段必须严格按照命令格式, 否则不会响应\n' \
            '详情规则参考http://www.yihubg.com/rule-details/7f81295f-7160-4261-b436-d385395b9b22'
     await Docs.finish(text)
 
@@ -145,7 +153,7 @@ change_one_cards = on_startswith("换牌", priority=1)
 
 # 换牌
 @change_one_cards.handle()
-async def _(bot: Bot, event: Event, state: T_State):
+async def _(bot: Bot, event: Event):
     global masters, all_player
     # 获取房间号
     qq_number = event.get_user_id()
