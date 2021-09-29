@@ -8,7 +8,7 @@ from nonebot.typing import T_State
 from nonebot.adapters.cqhttp import Bot, Event
 from .game_features import check_num
 
-from master import Master
+from .master import Master
 
 masters = {}  # 存储所有房间, 存储方式为 {房间号: 对应房间}
 all_player = {}  # 存储所有的玩家, 存储方式为 {玩家QQ号: 对应房间号}
@@ -24,7 +24,7 @@ async def _(bot: Bot):
            '加入房间的命令是“进XX“\n' \
            '查询已经打开的牌和玩家金币使用”查询“\n' \
            '支持强制结束”结束“'\
-           '换牌分两种\n:' \
+           '换牌分两种:\n' \
            '    一是被质疑的换牌命令”换牌n“\n' \
            '    二是大使的换牌, 命令是”大使“, 此时去掉多余的牌使用”删mn“\n' \
            '质疑使用”质疑“\n' \
@@ -44,10 +44,10 @@ players_num = on_endswith("人", rule=to_me(), priority=1)
 
 
 @players_num.handle()
-async def _(bot: Bot, event: Event, state: T_State):
+async def _(bot: Bot, event: Event):
     global masters, all_player
     qq_number = event.get_user_id()
-    if all_player.get(qq_number, ""):
+    if not all_player.get(qq_number, ""):
 
         num = await check_num(str(event.get_message()))
         if 2 <= num <= 7:

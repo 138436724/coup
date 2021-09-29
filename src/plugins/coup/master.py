@@ -3,7 +3,7 @@
 会接收所有消息，然后对对应的输入调用对应的处理函数
 """
 from random import shuffle
-from player import Player
+from .player import Player
 
 
 class Master:
