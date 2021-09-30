@@ -40,7 +40,7 @@ async def _(bot: Bot):
 
 
 # 玩家人数
-players_num = on_endswith("人", rule=to_me(), priority=1)
+players_num = on_endswith("人", priority=1)
 
 
 @players_num.handle()
@@ -57,7 +57,8 @@ async def _(bot: Bot, event: Event):
 
             if cards:
                 # 私聊发送身份牌
-                await bot.send_private_msg(user_id=int(qq_number), message="".join(cards))
+                await players_num.send(user_id=int(qq_number), message=" ".join(cards), message_type="private")
+                # await bot.send_private_msg(user_id=int(qq_number), message="".join(cards))
                 # 将房主纳入参与者名单
                 all_player[qq_number] = qq_number
                 # 用房主QQ表作为房间号
@@ -74,7 +75,7 @@ async def _(bot: Bot, event: Event):
 
 
 # 加入房间自动分配顺序
-join_in_room = on_startswith("进", rule=to_me(), priority=1)
+join_in_room = on_startswith("进", priority=1)
 
 
 # 玩家是否已经在某个房间里面了，房间是否存在，房间是否满员
@@ -83,29 +84,29 @@ async def _(bot: Bot, event: Event):
     global masters, all_player
     qq_number = event.get_user_id()
     # 是否已经加入房间
-    if all_player.get(qq_number, ""):
+    if not all_player.get(qq_number, ""):
         # 从命令中取得房号
         room_number = str(event.get_message())[1:]
-        room = await masters.get(room_number, None)
+        room = masters.get(room_number, None)
 
         if room:
             # 分发身份牌
-            cards = room.draw_cards(qq_number)
+            cards = await room.draw_cards(qq_number)
 
             if cards:
                 # 纳入参与者名单
                 all_player[qq_number] = room_number
                 # 私聊发送身份牌
-                await players_num.finish(user_id=int(qq_number), message=" ".join(cards), message_type="private")
+                await join_in_room.finish(user_id=int(qq_number), message=" ".join(cards), message_type="private")
 
             else:
                 await join_in_room.finish("房间已满，换一个吧")
 
         else:
-            await join_in_room.finish("房间号错误!")
+            await join_in_room.finish("你是故意找茬是不是!")
 
     else:
-        await players_num.finish(f"你已经在{all_player[qq_number]}房间里面了哦")
+        await join_in_room.finish(f"你已经在{all_player[qq_number]}房间里面了哦")
 
 
 # 查询现在在场玩家的打开身份牌和钱币
@@ -127,7 +128,7 @@ async def _(bot: Bot, event: Event):
         await inquire_info.finish("你是来找茬的是不是?")
 
 
-end_game = on_command("结束", rule=to_me(), priority=1)
+end_game = on_command("结束", priority=1)
 
 
 # 用于玩家自己结束游戏
@@ -139,8 +140,9 @@ async def _(bot: Bot, event: Event, state: T_State):
     room_number = all_player.get(qq_number, "")
 
     if room_number:
-        # 销毁该对象
+        # 销毁该对象和、在参与者名单里面剔除所有玩家 todo
         del masters[room_number]
+        del all_player[qq_number]
         await end_game.finish("再来一把?")
     else:
         await inquire_info.finish("你是来找茬的是不是?")

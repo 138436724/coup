@@ -46,7 +46,8 @@ class Master:
     async def players_info(self):
         msg = ""
         for qq_number, player in self.players.items():
-            msg = msg + qq_number + " ".join(player.open_identities) + "\n"
+            print(player.coins)
+            msg = msg + qq_number + " ".join(player.open_identities) + f"{player.coins}" + "\n"
         return msg
 
     # 处理质疑的换牌
