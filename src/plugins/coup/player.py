@@ -10,12 +10,12 @@
 class Player:
     coins = 2
     close_identities = []
-    open_identities = []
+    open_identities = ["XX", "XX"]
 
-    # 开牌
-    async def open_card(self, num):
-        identity = self.close_identities.pop(num - 1)
-        self.open_identities.append(identity)
+    def __init__(self):
+        self.coins = 2
+        self.close_identities.clear()
+        self.open_identities = ["XX", "XX"]
 
     # 收入
     async def get_one_coin(self):
@@ -55,8 +55,12 @@ class Player:
 
     # 删牌
     async def delete_two_cards(self, num):
-        card = [self.close_identities.pop(num[0] - 1), self.close_identities.pop(num[1] - 1)]
-        return card
+        m, n = max(num), min(num)
+        if (self.close_identities[m - 1] != "XX") and (self.close_identities[n - 1] != "XX"):
+            card = [self.close_identities.pop(n - 1), self.close_identities.pop(m - 1)]
+            return card
+        else:
+            return None
 
     # 刺客(刺杀)
     async def stab(self):

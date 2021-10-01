@@ -1,1 +1,2 @@
-使用nonebot2 + go-cqhttp
+使用nonebot2 + go-cqhttp  
+**BUG极多**

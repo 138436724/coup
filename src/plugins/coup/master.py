@@ -15,7 +15,7 @@ class Master:
     # [受害者QQ, 操作, 操作人QQ, 阻止人QQ, 质疑人QQ(""代表无人)]
     action_chain = ["", "", "", "", ""]
     ambassador_cards = []
-    identities = ['公爵 ', '队长 ', '夫人 ', '刺客 ', '大使 '] * 4
+    identities = ['公爵', '队长', '夫人', '刺客', '大使'] * 4
 
     def __init__(self, num):
         self.players.clear()
@@ -24,7 +24,7 @@ class Master:
         self.identity_card = ""  # 需要换掉的身份
         self.action_chain = ["", "", "", "", ""]
         self.ambassador_cards = []
-        self.identities = ['公爵 ', '队长 ', '夫人 ', '刺客 ', '大使 '] * 4
+        self.identities = ['公爵', '队长', '夫人', '刺客', '大使'] * 4
         shuffle(self.identities)
 
     # 分发身份卡
@@ -46,8 +46,9 @@ class Master:
     async def players_info(self):
         msg = ""
         for qq_number, player in self.players.items():
-            print(player.coins)
-            msg = msg + qq_number + " ".join(player.open_identities) + f"{player.coins}" + "\n"
+            # print(player.close_identities, player.open_identities)
+            msg += "玩家: " + qq_number + "; 翻开的身份为: " + " ".join(
+                player.open_identities) + " ;币数为: " + f"{player.coins}\n"
         return msg
 
     # 处理质疑的换牌
@@ -69,15 +70,19 @@ class Master:
     async def change_two_cards(self, qq_number):
 
         player = self.players[qq_number]
-        cards = player.change_two_cards(self.identities[0:2])
+        cards = await player.change_two_cards(self.identities[0:2])
         del self.identities[0:2]
-        self.ambassador_cards = cards
+        self.ambassador_cards = [qq_number, cards]
 
     # 大使的删牌
     async def delete_cards(self, qq_number: str, card_num: list):
         card = await self.players[qq_number].delete_two_cards(card_num)
-        self.identities += card
-        shuffle(self.identities)
+        if card:
+            self.identities += card
+            shuffle(self.identities)
+            return self.players[qq_number].close_identities
+        else:
+            return None
 
     # 检查政变和刺杀是否有足够金币
     async def check_coins(self, qq_number, action):
@@ -111,16 +116,24 @@ class Master:
             await player.stab()
         elif action == "大使":
             await self.change_two_cards(QQ_number)
-        self.action_chain = ["", "", "", "", ""]
 
     # 处理开牌事件, 全部开牌的角色仍然存在
     async def open_card(self, qq_number, num):
-        await self.players[qq_number].open_card(num)
+        player = self.players[qq_number]
+        if player.close_identities[num - 1] != "XX":
+            player.open_identities[num - 1], player.close_identities[num - 1] = player.close_identities[num - 1], \
+                                                                                player.open_identities[num - 1]
+        # for qq_number, p in self.players.items():
+        #     print(id(p.close_identities), id(p.open_identities))
+        #     print(p.close_identities, p.open_identities)
+
+        return player.close_identities
 
     # 处理质疑事件
     async def doubt(self, qq_number: str, identity: list):
         player = self.players[qq_number]
-        return set(player.open_identities) & set(identity)
+        # print(set(player.close_identities) & set(identity))
+        return set(player.close_identities) & set(identity)
 
     # 参数为是否有阻止, 操作链条
     async def doubt_event(self):
@@ -149,7 +162,7 @@ class Master:
             if self.action_chain[1] == "税收":
                 identity = ["公爵"]
             elif self.action_chain[1] == "抢夺":
-                identity = ["大使"]
+                identity = ["队长"]
             elif self.action_chain[1] == "刺杀":
                 identity = ["刺客"]
             elif self.action_chain[1] == "大使":
@@ -162,3 +175,8 @@ class Master:
             else:
                 # 质疑成功, 操作者打开一张牌, 无事发生
                 return [self.action_chain[2]]
+
+    async def delete_player(self, all_player):
+        for qq_number, _ in self.players.items():
+            del all_player[qq_number]
+        # return all_player
