@@ -1,12 +1,11 @@
 """
 这里接收所有与政变有关的命令, 具体事务由master处理
 """
-import copy
 from parse import parse
 from nonebot.rule import to_me
 from nonebot import on_command, on_endswith, on_startswith
 from nonebot.typing import T_State
-from nonebot.adapters.cqhttp import Bot, Event
+from nonebot.adapters.cqhttp import Bot, Event, MessageEvent
 from .game_features import check_num
 
 from .master import Master
@@ -163,7 +162,7 @@ async def _(bot: Bot, event: Event):
     qq_number = event.get_user_id()
     room_number = all_player.get(qq_number, "")
     if room_number:
-        card_num = int(str(event.get_message())[1:])
+        card_num = await check_num(str(event.get_message()))
         cards = await masters[room_number].change_one_card(qq_number, card_num)
         await change_one_cards.finish(user_id=int(qq_number), message=" ".join(cards), message_type="private")
     else:
@@ -180,7 +179,7 @@ async def _(bot: Bot, event: Event):
     # 获取房间号
     qq_number = event.get_user_id()
     room_number = all_player.get(qq_number, "")
-    if room_number and masters[room_number].action_chain[2] != qq_number:
+    if room_number:# and masters[room_number].action_chain[2] != qq_number:
 
         # 添加质疑人进入操作链
         masters[room_number].action_chain[4] = qq_number
@@ -279,8 +278,8 @@ async def _(bot: Bot, event: Event):
     room_number = all_player.get(qq_number, "")
     if room_number:
         # 检查金币数量
-        if masters[room_number].check_coins(qq_number, "政变"):
-            QQ_number = parse("[CQ:at,qq={} 政变]", str(event.get_message()))[0]
+        if await masters[room_number].check_coins(qq_number, "政变"):
+            QQ_number = event.message[0].data['qq']
             masters[room_number].action_chain[:3] = [QQ_number, "政变", qq_number]
             await masters[room_number].operation_event()
             masters[room_number].is_block = False
@@ -304,7 +303,7 @@ async def _(bot: Bot, event: Event):
     if room_number:
         # 检查金币数量
         if await masters[room_number].check_coins(qq_number, "刺杀"):
-            QQ_number = parse("[CQ:at,qq={} 刺杀]", str(event.get_message()))[0]
+            QQ_number = event.message[0].data['qq']
             # await masters[room_number].operation_event(qq_number, "刺杀", QQ_number)
             # 写入操作链, [受害者QQ, 操作, 操作人QQ, 阻止人QQ, 质疑人QQ)]
             masters[room_number].action_chain[:3] = [QQ_number, "刺杀", qq_number]
@@ -389,7 +388,8 @@ async def _(bot: Bot, event: Event):
     qq_number = event.get_user_id()
     room_number = all_player.get(qq_number, "")
     if room_number:
-        QQ_number = parse("[CQ:at,qq={} 抢] ", str(event.get_message()))[0]
+        QQ_number = event.message[0].data['qq']
+        # QQ_number = parse("[CQ: at, qq = {}}] 抢", str(event.get_message()))[0]
         # await masters[room_number].operation_event(qq_number, "刺杀", QQ_number)
         # 写入操作链, [受害者QQ, 操作, 操作人QQ, 阻止人QQ, 质疑人QQ)]
         masters[room_number].action_chain[:3] = [QQ_number, "抢夺", qq_number]

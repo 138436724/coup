@@ -11,7 +11,7 @@ class Master:
     players = {}
     player_num = 0
     is_block = False  # 是否有阻止
-    identity_card = ""  # 需要换掉的身份
+    identity_card = []  # 需要换掉的身份
     # [受害者QQ, 操作, 操作人QQ, 阻止人QQ, 质疑人QQ(""代表无人)]
     action_chain = ["", "", "", "", ""]
     ambassador_cards = []
@@ -22,7 +22,7 @@ class Master:
         self.players = {}
         self.player_num = num  # 确定参与人数
         self.is_block = False  # 是否有阻止
-        self.identity_card = ""  # 需要换掉的身份
+        self.identity_card = []  # 需要换掉的身份
         self.action_chain = ["", "", "", "", ""]
         self.ambassador_cards = []
         self.identities = ['公爵', '队长', '夫人', '刺客', '大使'] * 4
@@ -56,16 +56,18 @@ class Master:
     # 处理质疑的换牌
     async def change_one_card(self, qq_number, num):
         player = self.players[qq_number]
-        if player.close_identities[num - 1] == self.identities:
+        if player.close_identities[num - 1] in self.identity_card:
             card = player.close_identities.pop(num - 1)
-            player.close_identities.append(self.identities.pop())
-            self.identities.append(card)
-            shuffle(self.identities)
+            # player.close_identities.append(self.identities.pop())
+            # self.identities.append(card)
+            # shuffle(self.identities)
+            # self.identity_card = []
         else:
             card = player.close_identities.pop((3 - num) - 1)
-            player.close_identities.append(self.identities.pop())
-            self.identities.append(card)
-            shuffle(self.identities)
+        player.close_identities.append(self.identities.pop())
+        self.identities.append(card)
+        shuffle(self.identities)
+        self.identity_card = []
         return player.close_identities
 
     # 大使的换牌
@@ -155,6 +157,7 @@ class Master:
             if await self.doubt(self.action_chain[3], identity):  # 阻止人QQ, 身份
                 # 质疑失败, 质疑者打开一张牌, 阻止者换牌, 无事发生
                 # 换牌、开牌要求外界玩家声明, 在外界处理
+                self.identity_card = identity
                 return [self.action_chain[4], self.action_chain[3], identity]
             else:
                 # 质疑成功, 阻止者打开一张牌, 操作继续
@@ -177,6 +180,7 @@ class Master:
             if await self.doubt(self.action_chain[2], identity):  # 操作者QQ, 身份
                 # 质疑失败, 质疑者打开一张牌, 操作者换牌, 操作继续
                 await self.operation_event()
+                self.identity_card = identity
                 return [self.action_chain[4], self.action_chain[2], identity]
             else:
                 # 质疑成功, 操作者打开一张牌, 无事发生
