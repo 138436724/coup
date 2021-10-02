@@ -16,24 +16,26 @@ class Master:
     action_chain = ["", "", "", "", ""]
     ambassador_cards = []
     identities = ['公爵', '队长', '夫人', '刺客', '大使'] * 4
+    survivor_num = 0
 
     def __init__(self, num):
-        self.players.clear()
+        self.players = {}
         self.player_num = num  # 确定参与人数
         self.is_block = False  # 是否有阻止
         self.identity_card = ""  # 需要换掉的身份
         self.action_chain = ["", "", "", "", ""]
         self.ambassador_cards = []
         self.identities = ['公爵', '队长', '夫人', '刺客', '大使'] * 4
+        self.survivor_num = num
         shuffle(self.identities)
 
     # 分发身份卡
     async def draw_cards(self, qq_number):
         if len(self.players) < self.player_num:
-            player = Player()
+            self.players[qq_number] = Player()
+            player = self.players[qq_number]
             player.close_identities = self.identities[0:2]
             del self.identities[0:2]
-            self.players[qq_number] = player
             return player.close_identities
         else:
             return None
@@ -97,25 +99,26 @@ class Master:
     # 处理正常操作,参数为: 受害者QQ, 操作, 操作人QQ
     async def operation_event(self):
         qq_number, action, QQ_number = self.action_chain[:3]
-        player = self.players[QQ_number]
-        if action == "收入":
-            await player.get_one_coin()
-        elif action == "援助":
-            await player.get_two_coins()
-        elif action == "税收":
-            await player.get_three_coins()
-        elif action == "抢夺":
-            was_robbed_player = self.players[qq_number]
-            num = await was_robbed_player.was_rob_coins()
-            await player.rob_two_coins(num)
-        elif action == "政变":
-            # 在外面声明受害者开牌, 这里只减少金币
-            await player.coup()
-        elif action == "刺杀":
-            # 在外面声明受害者开牌, 这里只减少金币
-            await player.stab()
-        elif action == "大使":
-            await self.change_two_cards(QQ_number)
+        if QQ_number:
+            player = self.players[QQ_number]
+            if action == "收入":
+                await player.get_one_coin()
+            elif action == "援助":
+                await player.get_two_coins()
+            elif action == "税收":
+                await player.get_three_coins()
+            elif action == "抢夺":
+                was_robbed_player = self.players[qq_number]
+                num = await was_robbed_player.was_rob_coins()
+                await player.rob_two_coins(num)
+            elif action == "政变":
+                # 在外面声明受害者开牌, 这里只减少金币
+                await player.coup()
+            elif action == "刺杀":
+                # 在外面声明受害者开牌, 这里只减少金币
+                await player.stab()
+            elif action == "大使":
+                await self.change_two_cards(QQ_number)
 
     # 处理开牌事件, 全部开牌的角色仍然存在
     async def open_card(self, qq_number, num):
@@ -123,10 +126,9 @@ class Master:
         if player.close_identities[num - 1] != "XX":
             player.open_identities[num - 1], player.close_identities[num - 1] = player.close_identities[num - 1], \
                                                                                 player.open_identities[num - 1]
-        # for qq_number, p in self.players.items():
-        #     print(id(p.close_identities), id(p.open_identities))
-        #     print(p.close_identities, p.open_identities)
-
+        # 检查是否全部打开
+        if player.close_identities == ["XX", "XX"]:
+            self.survivor_num -= 1
         return player.close_identities
 
     # 处理质疑事件
@@ -137,7 +139,7 @@ class Master:
 
     # 参数为是否有阻止, 操作链条
     async def doubt_event(self):
-        identity = []
+        # identity = []
 
         if self.is_block:  # 有阻止有质疑
 
@@ -184,3 +186,10 @@ class Master:
         for qq_number, _ in self.players.items():
             del all_player[qq_number]
         # return all_player
+
+    async def winner(self):
+        if self.survivor_num == 1:
+            for qq_number, player in self.players.items():
+                if player.close_identities != ["XX", "XX"]:
+                    return qq_number
+        return ""

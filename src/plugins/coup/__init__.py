@@ -1,6 +1,7 @@
 """
 这里接收所有与政变有关的命令, 具体事务由master处理
 """
+import copy
 from parse import parse
 from nonebot.rule import to_me
 from nonebot import on_command, on_endswith, on_startswith
@@ -30,10 +31,10 @@ async def _(bot: Bot):
            '质疑使用”质疑“\n' \
            '由于对质疑的支持, 凡是不涉及质疑的操作需要使用”过“强制结算\n' \
            '翻牌使用”开n“\n' \
-           '政变需要使用”政变@“\n' \
-           '刺杀需要使用”刺杀@“\n' \
+           '政变需要使用”@xx政变“\n' \
+           '刺杀需要使用”@xx刺杀“\n' \
            '阻止、收入、援助、公爵 使用对应名称作为命令\n' \
-           '抢夺也是”抢@“\n' \
+           '抢夺也是”@xx抢“\n' \
            '!!! 注意:当前阶段必须严格按照命令格式, 否则不会响应\n' \
            '详情规则参考http://www.yihubg.com/rule-details/7f81295f-7160-4261-b436-d385395b9b22'
     await Docs.finish(text)
@@ -52,17 +53,17 @@ async def _(bot: Bot, event: Event):
         num = await check_num(str(event.get_message()))
         if 2 <= num <= 7:
             # 为房主分发身份牌
-            master_ = Master(num)
-            cards = await master_.draw_cards(qq_number)
+            room = Master(num)
+            cards = await room.draw_cards(qq_number)
 
             if cards:
                 # 私聊发送身份牌
                 await players_num.send(user_id=int(qq_number), message=" ".join(cards), message_type="private")
                 # await bot.send_private_msg(user_id=int(qq_number), message="".join(cards))
                 # 将房主纳入参与者名单
+                masters[qq_number] = room
                 all_player[qq_number] = qq_number
                 # 用房主QQ表作为房间号
-                masters[qq_number] = master_
                 await players_num.finish(f"创建的房间号为{qq_number}")
             else:
                 await players_num.finish("人数已满!")
@@ -133,15 +134,16 @@ end_game = on_command("结束", priority=1)
 
 # 用于玩家自己结束游戏
 @end_game.handle()
-async def _(bot: Bot, event: Event, state: T_State):
+async def _(bot: Bot, event: Event):
     global masters, all_player
     # 获取房间号
     qq_number = event.get_user_id()
     room_number = all_player.get(qq_number, "")
 
     if room_number:
-        # 销毁该对象和、在参与者名单里面剔除所有玩家
-        await masters[room_number].delete_player(all_player)
+        # 销毁该对象、在参与者名单里面剔除所有玩家
+        room = masters[room_number]
+        await room.delete_player(all_player)
         del masters[room_number]
         await end_game.finish("再来一把?")
     else:
@@ -252,13 +254,21 @@ async def _(bot: Bot, event: Event):
     room_number = all_player.get(qq_number, "")
     if room_number:
         num = await check_num(str(event.get_message()))
-        cards = await masters[room_number].open_card(qq_number, num)
-        await open_card.finish(user_id=int(qq_number), message=" ".join(cards), message_type="private")
+        if num != -1:
+            cards = await masters[room_number].open_card(qq_number, num)
+            await open_card.send(user_id=int(qq_number), message=" ".join(cards), message_type="private")
+    QQ_number = await masters[room_number].winner()
+    if QQ_number:
+        # 结束游戏，销毁该对象、在参与者名单里面剔除所有玩家
+        room = masters[room_number]
+        await room.delete_player(all_player)
+        del masters[room_number]
+        await open_card.finish(f"获胜者是{QQ_number}")
     await open_card.finish()
 
 
 # 政变
-lost_seven_coins = on_startswith("政变", priority=1)
+lost_seven_coins = on_endswith("政变", priority=1)
 
 
 @lost_seven_coins.handle()
@@ -270,7 +280,7 @@ async def _(bot: Bot, event: Event):
     if room_number:
         # 检查金币数量
         if masters[room_number].check_coins(qq_number, "政变"):
-            QQ_number = parse("政变[CQ:at,qq={} ]", str(event.get_message()))[0]
+            QQ_number = parse("[CQ:at,qq={} 政变]", str(event.get_message()))[0]
             masters[room_number].action_chain[:3] = [QQ_number, "政变", qq_number]
             await masters[room_number].operation_event()
             masters[room_number].is_block = False
@@ -282,7 +292,7 @@ async def _(bot: Bot, event: Event):
 
 
 # 刺杀
-lost_three_coins = on_startswith("刺杀", priority=1)
+lost_three_coins = on_endswith("刺杀", priority=1)
 
 
 @lost_three_coins.handle()
@@ -294,7 +304,7 @@ async def _(bot: Bot, event: Event):
     if room_number:
         # 检查金币数量
         if await masters[room_number].check_coins(qq_number, "刺杀"):
-            QQ_number = parse("刺杀[CQ:at,qq={} ]", str(event.get_message()))[0]
+            QQ_number = parse("[CQ:at,qq={} 刺杀]", str(event.get_message()))[0]
             # await masters[room_number].operation_event(qq_number, "刺杀", QQ_number)
             # 写入操作链, [受害者QQ, 操作, 操作人QQ, 阻止人QQ, 质疑人QQ)]
             masters[room_number].action_chain[:3] = [QQ_number, "刺杀", qq_number]
@@ -368,7 +378,7 @@ async def _(bot: Bot, event: Event):
     await get_three_coins.finish()
 
 
-lost_two_coins = on_startswith("抢", priority=1)
+lost_two_coins = on_endswith("抢", priority=1)
 
 
 # 队长
@@ -379,7 +389,7 @@ async def _(bot: Bot, event: Event):
     qq_number = event.get_user_id()
     room_number = all_player.get(qq_number, "")
     if room_number:
-        QQ_number = parse("抢[CQ:at,qq={}] ", str(event.get_message()))[0]
+        QQ_number = parse("[CQ:at,qq={} 抢] ", str(event.get_message()))[0]
         # await masters[room_number].operation_event(qq_number, "刺杀", QQ_number)
         # 写入操作链, [受害者QQ, 操作, 操作人QQ, 阻止人QQ, 质疑人QQ)]
         masters[room_number].action_chain[:3] = [QQ_number, "抢夺", qq_number]

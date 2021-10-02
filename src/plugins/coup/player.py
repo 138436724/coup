@@ -57,7 +57,7 @@ class Player:
     async def delete_two_cards(self, num):
         m, n = max(num), min(num)
         if (self.close_identities[m - 1] != "XX") and (self.close_identities[n - 1] != "XX"):
-            card = [self.close_identities.pop(n - 1), self.close_identities.pop(m - 1)]
+            card = [self.close_identities.pop(m - 1), self.close_identities.pop(n - 1)]
             return card
         else:
             return None
