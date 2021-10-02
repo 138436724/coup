@@ -147,6 +147,8 @@ class Master:
                 identity = ["大使", "队长"]
             elif self.action_chain[1] == "刺杀":
                 identity = ["夫人"]
+            else:
+                return
 
             if await self.doubt(self.action_chain[3], identity):  # 阻止人QQ, 身份
                 # 质疑失败, 质疑者打开一张牌, 阻止者换牌, 无事发生
@@ -167,6 +169,8 @@ class Master:
                 identity = ["刺客"]
             elif self.action_chain[1] == "大使":
                 identity = ["大使"]
+            else:
+                return
 
             if await self.doubt(self.action_chain[2], identity):  # 操作者QQ, 身份
                 # 质疑失败, 质疑者打开一张牌, 操作者换牌, 操作继续

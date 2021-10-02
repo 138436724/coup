@@ -145,7 +145,7 @@ async def _(bot: Bot, event: Event, state: T_State):
         del masters[room_number]
         await end_game.finish("再来一把?")
     else:
-        await inquire_info.finish("你是来找茬的是不是?")
+        await end_game.finish("你是来找茬的是不是?")
 
 
 # ======================游戏逻辑====================== #
@@ -160,9 +160,12 @@ async def _(bot: Bot, event: Event):
     # 获取房间号
     qq_number = event.get_user_id()
     room_number = all_player.get(qq_number, "")
-    card_num = int(str(event.get_message())[1:])
-    cards = await masters[room_number].change_one_card(qq_number, card_num)
-    await change_one_cards.finish(user_id=int(qq_number), message=" ".join(cards), message_type="private")
+    if room_number:
+        card_num = int(str(event.get_message())[1:])
+        cards = await masters[room_number].change_one_card(qq_number, card_num)
+        await change_one_cards.finish(user_id=int(qq_number), message=" ".join(cards), message_type="private")
+    else:
+        await change_one_cards.finish()
 
 
 # 质疑的处理
@@ -175,34 +178,34 @@ async def _(bot: Bot, event: Event):
     # 获取房间号
     qq_number = event.get_user_id()
     room_number = all_player.get(qq_number, "")
+    if room_number and masters[room_number].action_chain[2] != qq_number:
 
-    # print(room_number)
-    # print(all_player)
-    # 添加质疑人进入操作链
-    masters[room_number].action_chain[4] = qq_number
+        # 添加质疑人进入操作链
+        masters[room_number].action_chain[4] = qq_number
 
-    # 处理质疑
-    result = await masters[room_number].doubt_event()
-    masters[room_number].is_block = False
-    masters[room_number].action_chain = ["", "", "", "", ""]
-    # action_chain = ["", "", "", "", ""]
+        # 处理质疑
+        result = await masters[room_number].doubt_event()
+        if result:
+            masters[room_number].is_block = False
+            masters[room_number].action_chain = ["", "", "", "", ""]
+            # action_chain = ["", "", "", "", ""]
 
-    # 判断大使换牌
-    # QQ_number, cards = masters[room_number].ambassador_cards
-    # if cards:
-    #     masters[room_number].ambassador_cards = []
-    #     await doubt.send(user_id=int(QQ_number), message=" ".join(cards), message_type="private")
-    if masters[room_number].ambassador_cards:
-        QQ_number, cards = masters[room_number].ambassador_cards
-        masters[room_number].ambassador_cards = []
-        await doubt.send(user_id=int(QQ_number), message=" ".join(cards), message_type="private")
+            # 判断大使换牌
+            if masters[room_number].ambassador_cards:
+                QQ_number, cards = masters[room_number].ambassador_cards
+                masters[room_number].ambassador_cards = []
+                await doubt.send(user_id=int(QQ_number), message=" ".join(cards), message_type="private")
 
-    if len(result) == 3:
-        masters[room_number].identity_card = result[-1]
-        await doubt.finish(f"{result[0]}质疑失败，选择开牌; {result[1]}选择换牌")
+            if len(result) == 3:
+                masters[room_number].identity_card = result[-1]
+                await doubt.finish(f"{result[0]}质疑失败，选择开牌; {result[1]}选择换牌")
+            else:
+                masters[room_number].identity_card = ""
+                await doubt.finish(f"质疑成功, {result[0]}选择开牌")
+        else:
+            await doubt.finish("嗯?")
     else:
-        masters[room_number].identity_card = ""
-        await doubt.finish(f"质疑成功, {result[0]}选择开牌")
+        await doubt.finish("你是来找茬的是不是?")
 
 
 # 强制结算
@@ -216,23 +219,25 @@ async def _(bot: Bot, event: Event):
     qq_number = event.get_user_id()
     room_number = all_player.get(qq_number, "")
 
-    # 判断是否是操作者过
-    if masters[room_number].action_chain[2] != qq_number:
+    if room_number:
+        # 判断是否是操作者过
+        if masters[room_number].action_chain[2] != qq_number:
 
-        # 判断是否有阻止, 有:无事发生, 无: 判断操作
-        if masters[room_number].is_block:
+            # 判断是否有阻止, 有:无事发生, 无: 判断操作
+            if not masters[room_number].is_block:
+                await masters[room_number].operation_event()
             masters[room_number].is_block = False
+            masters[room_number].action_chain = ["", "", "", "", ""]
+            # 判断大使身份
+            if masters[room_number].ambassador_cards:
+                QQ_number, cards = masters[room_number].ambassador_cards
+                masters[room_number].ambassador_cards = []
+                await go_pass.finish(user_id=int(QQ_number), message=" ".join(cards), message_type="private")
+            await go_pass.finish()
         else:
-            await masters[room_number].operation_event()
-        masters[room_number].action_chain = ["", "", "", "", ""]
-        # 判断大使身份
-        if masters[room_number].ambassador_cards:
-            QQ_number, cards = masters[room_number].ambassador_cards
-            masters[room_number].ambassador_cards = []
-            await go_pass.finish(user_id=int(QQ_number), message=" ".join(cards), message_type="private")
-        await go_pass.finish()
+            await go_pass.finish("我谴责你这种行为!")
     else:
-        await go_pass.finish("我谴责你这种行为!")
+        await go_pass.finish()
 
 
 # 开牌
@@ -245,10 +250,11 @@ async def _(bot: Bot, event: Event):
     # 获取房间号
     qq_number = event.get_user_id()
     room_number = all_player.get(qq_number, "")
-    num = await check_num(str(event.get_message()))
-    cards = await masters[room_number].open_card(qq_number, num)
-    await open_card.finish(user_id=int(qq_number), message=" ".join(cards), message_type="private")
-    # await open_card.finish()
+    if room_number:
+        num = await check_num(str(event.get_message()))
+        cards = await masters[room_number].open_card(qq_number, num)
+        await open_card.finish(user_id=int(qq_number), message=" ".join(cards), message_type="private")
+    await open_card.finish()
 
 
 # 政变
@@ -261,14 +267,17 @@ async def _(bot: Bot, event: Event):
     # 获取房间号
     qq_number = event.get_user_id()
     room_number = all_player.get(qq_number, "")
-    # 检查金币数量
-    if masters[room_number].check_coins(qq_number, "政变"):
-        QQ_number = parse("政变[CQ:at,qq={} ]", str(event.get_message()))[0]
-        masters[room_number].action_chain[:3] = [QQ_number, "政变", qq_number]
-        await masters[room_number].operation_event()
-        await lost_seven_coins.finish(f"{QQ_number}开一张牌吧")
-    else:
-        await lost_seven_coins.finish("没钱!没钱!")
+    if room_number:
+        # 检查金币数量
+        if masters[room_number].check_coins(qq_number, "政变"):
+            QQ_number = parse("政变[CQ:at,qq={} ]", str(event.get_message()))[0]
+            masters[room_number].action_chain[:3] = [QQ_number, "政变", qq_number]
+            await masters[room_number].operation_event()
+            masters[room_number].is_block = False
+            masters[room_number].action_chain = ["", "", "", "", ""]
+            await lost_seven_coins.finish(f"{QQ_number}开一张牌吧")
+        else:
+            await lost_seven_coins.finish("没钱!没钱!")
     await lost_seven_coins.finish()
 
 
@@ -282,14 +291,15 @@ async def _(bot: Bot, event: Event):
     # 获取房间号
     qq_number = event.get_user_id()
     room_number = all_player.get(qq_number, "")
-    # 检查金币数量
-    if await masters[room_number].check_coins(qq_number, "刺杀"):
-        QQ_number = parse("刺杀[CQ:at,qq={} ]", str(event.get_message()))[0]
-        # await masters[room_number].operation_event(qq_number, "刺杀", QQ_number)
-        # 写入操作链, [受害者QQ, 操作, 操作人QQ, 阻止人QQ, 质疑人QQ)]
-        masters[room_number].action_chain[:3] = [QQ_number, "刺杀", qq_number]
-    else:
-        await lost_seven_coins.finish("没钱!没钱!")
+    if room_number:
+        # 检查金币数量
+        if await masters[room_number].check_coins(qq_number, "刺杀"):
+            QQ_number = parse("刺杀[CQ:at,qq={} ]", str(event.get_message()))[0]
+            # await masters[room_number].operation_event(qq_number, "刺杀", QQ_number)
+            # 写入操作链, [受害者QQ, 操作, 操作人QQ, 阻止人QQ, 质疑人QQ)]
+            masters[room_number].action_chain[:3] = [QQ_number, "刺杀", qq_number]
+        else:
+            await lost_seven_coins.finish("没钱!没钱!")
     await lost_three_coins.finish()
 
 
@@ -303,9 +313,10 @@ async def _(bot: Bot, event: Event):
     # 获取房间号
     qq_number = event.get_user_id()
     room_number = all_player.get(qq_number, "")
-    masters[room_number].is_block = True
-    # 阻止人写入操作链
-    masters[room_number].action_chain[3] = qq_number
+    if room_number and masters[room_number].action_chain[2] != qq_number:
+        masters[room_number].is_block = True
+        # 阻止人写入操作链
+        masters[room_number].action_chain[3] = qq_number
     await block_operation.finish()
 
 
@@ -319,8 +330,11 @@ async def _(bot: Bot, event: Event):
     # 获取房间号
     qq_number = event.get_user_id()
     room_number = all_player.get(qq_number, "")
-    masters[room_number].action_chain[:3] = ["", "收入", qq_number]
-    await masters[room_number].operation_event()
+    if room_number:
+        masters[room_number].action_chain[:3] = ["", "收入", qq_number]
+        await masters[room_number].operation_event()
+        masters[room_number].is_block = False
+        masters[room_number].action_chain = ["", "", "", "", ""]
     await get_one_coin.finish()
 
 
@@ -334,7 +348,8 @@ async def _(bot: Bot, event: Event):
     # 获取房间号
     qq_number = event.get_user_id()
     room_number = all_player.get(qq_number, "")
-    masters[room_number].action_chain[:3] = ["", "援助", qq_number]
+    if room_number:
+        masters[room_number].action_chain[:3] = ["", "援助", qq_number]
     await get_two_coins.finish()
 
 
@@ -348,7 +363,8 @@ async def _(bot: Bot, event: Event):
     # 获取房间号
     qq_number = event.get_user_id()
     room_number = all_player.get(qq_number, "")
-    masters[room_number].action_chain[:3] = ["", "税收", qq_number]
+    if room_number:
+        masters[room_number].action_chain[:3] = ["", "税收", qq_number]
     await get_three_coins.finish()
 
 
@@ -362,10 +378,11 @@ async def _(bot: Bot, event: Event):
     # 获取房间号
     qq_number = event.get_user_id()
     room_number = all_player.get(qq_number, "")
-    QQ_number = parse("抢[CQ:at,qq={}] ", str(event.get_message()))[0]
-    # await masters[room_number].operation_event(qq_number, "刺杀", QQ_number)
-    # 写入操作链, [受害者QQ, 操作, 操作人QQ, 阻止人QQ, 质疑人QQ)]
-    masters[room_number].action_chain[:3] = [QQ_number, "抢夺", qq_number]
+    if room_number:
+        QQ_number = parse("抢[CQ:at,qq={}] ", str(event.get_message()))[0]
+        # await masters[room_number].operation_event(qq_number, "刺杀", QQ_number)
+        # 写入操作链, [受害者QQ, 操作, 操作人QQ, 阻止人QQ, 质疑人QQ)]
+        masters[room_number].action_chain[:3] = [QQ_number, "抢夺", qq_number]
     await lost_two_coins.finish()
 
 
@@ -384,8 +401,9 @@ async def _(bot: Bot, event: Event, state: T_State):
     # 获取房间号
     qq_number = event.get_user_id()
     room_number = all_player.get(qq_number, "")
-    # 写入操作链, [受害者QQ, 操作, 操作人QQ, 阻止人QQ, 质疑人QQ)]
-    masters[room_number].action_chain[:3] = ["", "大使", qq_number]
+    if room_number:
+        # 写入操作链, [受害者QQ, 操作, 操作人QQ, 阻止人QQ, 质疑人QQ)]
+        masters[room_number].action_chain[:3] = ["", "大使", qq_number]
     await change_two_cards.finish()
 
 
@@ -398,9 +416,12 @@ async def _(bot: Bot, event: Event):
     # 获取房间号
     qq_number = event.get_user_id()
     room_number = all_player.get(qq_number, "")
-    card_num = [int(x) for x in list(str(event.get_message())[1:])]
-    cards = await masters[room_number].delete_cards(qq_number, card_num)
-    if cards:
-        await delete_cards.finish(user_id=int(qq_number), message=" ".join(cards), message_type="private")
+    if room_number:
+        card_num = [int(x) for x in list(str(event.get_message())[1:])]
+        cards = await masters[room_number].delete_cards(qq_number, card_num)
+        if cards:
+            await delete_cards.finish(user_id=int(qq_number), message=" ".join(cards), message_type="private")
+        else:
+            await delete_cards.finish("嘿嘿嘿，想搞事是吧")
     else:
-        await delete_cards.finish("嘿嘿嘿，想搞事是吧")
+        await delete_cards.finish()
