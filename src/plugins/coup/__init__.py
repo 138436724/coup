@@ -68,7 +68,7 @@ async def _(bot: Bot, event: Event):
                 await players_num.finish("人数已满!")
 
         else:
-            await players_num.finish("人数错误!")
+            await players_num.finish()
 
     else:
         await players_num.finish(f"你已经在{all_player[qq_number]}房间里面了哦")
@@ -103,7 +103,7 @@ async def _(bot: Bot, event: Event):
                 await join_in_room.finish("房间已满，换一个吧")
 
         else:
-            await join_in_room.finish("你是故意找茬是不是!")
+            await join_in_room.finish()
 
     else:
         await join_in_room.finish(f"你已经在{all_player[qq_number]}房间里面了哦")
@@ -120,12 +120,15 @@ async def _(bot: Bot, event: Event):
     qq_number = event.get_user_id()
     room_number = all_player.get(qq_number, "")
 
-    if room_number and await masters[room_number].is_full_people():
-        # 获取这个房间里面所有玩家的信息
-        msg = await masters[room_number].players_info()
-        await inquire_info.finish(msg)
+    if room_number:
+        if await masters[room_number].is_full_people():
+            # 获取这个房间里面所有玩家的信息
+            msg = await masters[room_number].players_info()
+            await inquire_info.finish(msg)
+        else:
+            await inquire_info.finish("人还没齐哦")
     else:
-        await inquire_info.finish("你是来找茬的是不是?")
+        await inquire_info.finish()
 
 
 end_game = on_command("结束", priority=1)
@@ -146,7 +149,7 @@ async def _(bot: Bot, event: Event):
         del masters[room_number]
         await end_game.finish("再来一把?")
     else:
-        await end_game.finish("你是来找茬的是不是?")
+        await end_game.finish()
 
 
 # ======================游戏逻辑====================== #
@@ -206,7 +209,7 @@ async def _(bot: Bot, event: Event):
         else:
             await doubt.finish("嗯?")
     else:
-        await doubt.finish("你是来找茬的是不是?")
+        await doubt.finish()
 
 
 # 强制结算
@@ -256,13 +259,13 @@ async def _(bot: Bot, event: Event):
         if num != -1:
             cards = await masters[room_number].open_card(qq_number, num)
             await open_card.send(user_id=int(qq_number), message=" ".join(cards), message_type="private")
-    QQ_number = await masters[room_number].winner()
-    if QQ_number:
-        # 结束游戏，销毁该对象、在参与者名单里面剔除所有玩家
-        room = masters[room_number]
-        await room.delete_player(all_player)
-        del masters[room_number]
-        await open_card.finish(f"获胜者是{QQ_number}")
+        QQ_number = await masters[room_number].winner()
+        if QQ_number:
+            # 结束游戏，销毁该对象、在参与者名单里面剔除所有玩家
+            room = masters[room_number]
+            await room.delete_player(all_player)
+            del masters[room_number]
+            await open_card.finish(f"获胜者是{QQ_number}")
     await open_card.finish()
 
 

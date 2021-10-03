@@ -8,13 +8,13 @@
 
 
 class Player:
-    coins = 2
-    close_identities = []
-    open_identities = ["XX", "XX"]
+    # coins = 2
+    # close_identities = []
+    # open_identities = ["XX", "XX"]
 
     def __init__(self):
         self.coins = 2
-        self.close_identities.clear()
+        self.close_identities = []
         self.open_identities = ["XX", "XX"]
 
     # 收入

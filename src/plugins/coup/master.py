@@ -7,16 +7,16 @@ from .player import Player
 
 
 class Master:
-    # 游戏是否开始、玩家数据、身份牌
-    players = {}
-    player_num = 0
-    is_block = False  # 是否有阻止
-    identity_card = []  # 需要换掉的身份
-    # [受害者QQ, 操作, 操作人QQ, 阻止人QQ, 质疑人QQ(""代表无人)]
-    action_chain = ["", "", "", "", ""]
-    ambassador_cards = []
-    identities = ['公爵', '队长', '夫人', '刺客', '大使'] * 4
-    survivor_num = 0
+    # # 游戏是否开始、玩家数据、身份牌
+    # players = {}
+    # player_num = 0
+    # is_block = False  # 是否有阻止
+    # identity_card = []  # 需要换掉的身份
+    # # [受害者QQ, 操作, 操作人QQ, 阻止人QQ, 质疑人QQ(""代表无人)]
+    # action_chain = ["", "", "", "", ""]
+    # ambassador_cards = []
+    # identities = ['公爵', '队长', '夫人', '刺客', '大使'] * 4
+    # survivor_num = 0
 
     def __init__(self, num):
         self.players = {}
