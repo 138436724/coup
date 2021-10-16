@@ -20,7 +20,7 @@ Docs = on_command("帮助", rule=to_me(), aliases={"帮助文档", }, priority=0
 
 @Docs.handle()
 async def _(bot: Bot):
-    text = '创建房间直接使用“n人”\n' \
+    text = '创建房间需要先@机器人再声明“n人”\n' \
            '加入房间的命令是“进XX“\n' \
            '查询已经打开的牌和玩家金币使用”查询“\n' \
            '支持强制结束”结束“' \
