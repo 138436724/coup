@@ -40,7 +40,7 @@ async def _(bot: Bot):
 
 
 # 玩家人数
-players_num = on_endswith("人", priority=1)
+players_num = on_endswith("人", rule=to_me(), priority=1)
 
 
 @players_num.handle()
@@ -182,7 +182,7 @@ async def _(bot: Bot, event: Event):
     # 获取房间号
     qq_number = event.get_user_id()
     room_number = all_player.get(qq_number, "")
-    if room_number:# and masters[room_number].action_chain[2] != qq_number:
+    if room_number:  # and masters[room_number].action_chain[2] != qq_number:
 
         # 添加质疑人进入操作链
         masters[room_number].action_chain[4] = qq_number
