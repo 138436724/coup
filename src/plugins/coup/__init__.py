@@ -5,7 +5,7 @@ from parse import parse
 from nonebot.rule import to_me
 from nonebot import on_command, on_endswith, on_startswith
 from nonebot.typing import T_State
-from nonebot.adapters.cqhttp import Bot, Event, MessageEvent
+from nonebot.adapters.onebot.v11 import Bot, Event, MessageEvent
 from .game_features import check_num
 
 from .master import Master

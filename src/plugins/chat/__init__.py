@@ -1,8 +1,9 @@
+from cgitb import text
 import httpx
 from nonebot import on_command, on_endswith
 # from nonebot.rule import to_me
 from nonebot.typing import T_State
-from nonebot.adapters.cqhttp import Bot, Event, Message, MessageSegment
+from nonebot.adapters.onebot.v11 import Bot, Event, Message, MessageSegment
 
 dujitang = on_command("毒鸡汤", priority=9)
 caihongpi = on_command("彩虹屁",  priority=9)

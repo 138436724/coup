@@ -2,7 +2,7 @@ import httpx
 from nonebot import on_command
 # from nonebot.rule import to_me
 from nonebot.typing import T_State
-from nonebot.adapters.cqhttp import Bot, Event, Message, MessageSegment
+from nonebot.adapters.onebot.v11 import Bot, Event, Message, MessageSegment
 
 draw_cards = on_command("抽卡", aliases={'抽牌', '抽卡', 'random'}, priority=9)
 
