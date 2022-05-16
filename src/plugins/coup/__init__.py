@@ -1,7 +1,7 @@
 """
 这里接收所有与政变有关的命令, 具体事务由master处理
 """
-from parse import parse
+#from parse import parse
 from nonebot.rule import to_me
 from nonebot import on_command, on_endswith, on_startswith
 from nonebot.typing import T_State
