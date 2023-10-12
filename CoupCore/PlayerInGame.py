@@ -8,9 +8,11 @@
 from .ExceptionInGame import NotAGoodNumber, NotAGoodType
 from .EnumInGame import IDENTITY
 
+from typing import List
+
 
 class Player:
-    async def __init__(self, cards: list):
+    async def __init__(self, cards: List[IDENTITY]):
         """
         构造函数
         @parama: cards 身份牌列表
@@ -18,11 +20,11 @@ class Player:
         """
         if type(cards) != list:
             raise NotAGoodType("参数应该是列表类型")
-        self.__coins = 2  # 初始2个金币
-        self.__ID_cards = cards  # 初始身份牌
-        self.__open_ID_cards = []  # 初始无翻开的身份牌, 需要专门的函数处理成字符串返回给master
+        self.__coins: int = 2  # 初始2个金币
+        self.__ID_cards: List[IDENTITY] = cards  # 初始身份牌
+        self.__open_ID_cards: List[IDENTITY] = []
 
-    async def set_cards(self, cards: list):
+    async def set_cards(self, cards: List[IDENTITY]):
         """
         为大使提供的操作
         @parama: cards 身份牌列表
@@ -30,7 +32,17 @@ class Player:
         """
         if type(cards) != list:
             raise NotAGoodType("参数应该是列表类型")
-        self.__ID_cards = cards
+        self.__ID_cards += cards
+
+    async def del_cards(self, nums: List):
+        """
+        为大使提供的操作
+        @parama: nums 要丢弃的身份牌
+        @return: list 丢地的身份牌
+        """
+        nums.sort()
+
+        return [self.__ID_cards.pop(nums[1]), self.__ID_cards.pop(nums[0])]
 
     async def open_cards(self, num: int):
         """
@@ -98,88 +110,18 @@ class Player:
         @parama: None
         @return: str
         """
-        return f"币：{self.__coins}，身份牌：" + " ".join(self.__open_ID_cards)
+        message = f"币：{self.__coins}，身份牌："
 
-    # 主动技能:
-    #     收入
-    #     援助
-    #     质疑
-    #     政变
-    #
-    # 被动能力:
-    #     开牌
-    #     查询
-    #
-    # 角色技能:
-    #     公爵(税收、阻止)
-    #     队长(抢夺、阻止)
-    #     大使(换牌、阻止、删牌)
-    #     刺客(刺杀)
-    #     夫人(阻止)
+        for identity in self.__open_ID_cards:
+            if identity == IDENTITY.DUKE:
+                message += "公爵"
+            elif identity == IDENTITY.ASSASSIN:
+                message += "刺客"
+            elif identity == IDENTITY.CONTESSA:
+                message += "夫人"
+            elif identity == IDENTITY.CAPTAIN:
+                message += "队长"
+            elif identity == IDENTITY.AMBASSADOR:
+                message += "大使"
 
-    # # 收入
-    # async def income(self):
-    #     self.__coins += 1
-    #
-    # # 援助
-    # async def assistance(self):
-    #     self.__coins += 2
-    #
-    # # 质疑
-    # async def doubt(self):
-    #     pass
-    #
-    # # 政变
-    # async def coup(self):
-    #     self.__coins -= 7
-    #
-    # # 开牌
-    # async def expose(self, num: int):
-    #     num -= 1
-    #     card = self.__ID_cards.pop(num)
-    #     self.__open_ID_cards.append(card)
-    #
-    # # 查询
-    # async def inquiry(self):
-    #     return " ".join(self.__open_ID_cards)
-    #
-    # # 公爵(税收、阻止)
-    # async def taxation(self):
-    #     self.__coins += 3
-    #
-    # # 队长(抢夺、阻止)
-    # async def snatch(self, num: int):
-    #     self.__coins += num
-    #
-    # async def was_snatch(self):
-    #     if self.__coins >= 2:
-    #         self.__coins -= 2
-    #         return 2
-    #     elif self.__coins == 1:
-    #         self.__coins = 0
-    #         return 1
-    #     else:
-    #         self.__coins = 0
-    #         return 0
-    #
-    # # 大使(换牌、阻止、删牌)
-    # async def replace(self, cards: list):
-    #     self.__ID_cards += cards
-    #     return self.__ID_cards
-    #
-    # async def discard(self, num: int):
-    #     num -= 1
-    #     # 这张牌是被换走的牌
-    #     card = self.__ID_cards.pop(num)
-    #     return card
-    #     # m, n = max(num), min(num)
-    #     # if (self.close_identities[m - 1] != "XX") and (self.close_identities[n - 1] != "XX"):
-    #     #     card = [self.close_identities.pop(
-    #     #         m - 1), self.close_identities.pop(n - 1)]
-    #     #     return card
-    #     # else:
-    #     #     return None
-    #
-    # # 刺客(刺杀)
-    # async def stab(self):
-    #     self.__coins -= 3
+        return message

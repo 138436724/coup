@@ -18,15 +18,15 @@ class OPERATION(Enum):
     FOREIGE_AID = 3
     COUP = 4
     DOUBT = 5
+    BLOCK = 6
+    OPEN = 7
     # 角色技能
-    DUKE = 6
-    DUKE_BLOCK = 7
-    ASSASSIN = 8
-    CONTESSA = 9
-    CAPTAIN = 10
-    CAPTAIN_BLOCK = 11
+    DUKE = 8
+    ASSASSIN = 9
+    CONTESSA = 10
+    CAPTAIN = 11
     AMBASSADOR = 12
-    AMBASSADOR_BLOCK = 13
+    AMBASSADOR_DELETE = 13
 
 
 # 游戏正式开始之前和结束之后的操作

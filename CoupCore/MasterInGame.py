@@ -1,3 +1,4 @@
+from typing import Union, List
 from random import shuffle
 from .EnumInGame import IDENTITY, OPERATION, OTHER_OPERATION
 from .PlayerInGame import Player
@@ -10,6 +11,8 @@ class Master:
 
         # 记录本轮玩家的行为
         self.action_reocrd: list[list] = []  # 记录格式[qq, operation,qq]
+        # self.doubt: bool = False
+        # self.block: bool = False
 
         # self.identity_card = []  # 需要换掉的身份
         # self.ambassador_cards = []
@@ -27,8 +30,69 @@ class Master:
 
     # 每局结束之后为下一局做准备
     async def __round_init(self):
+        while self.action_reocrd:
+            victimizer_qq, action, victim_qq, num, card, nums = self.action_reocrd.pop()
+
+            victimizer_player = self.players[victimizer_qq]
+            victim_player = self.players[victim_qq]
+
+            if action == OPERATION.PASS:
+                continue
+
+            elif action == OPERATION.INCOME:
+                await victimizer_player.add_coins(1)
+
+            elif action == OPERATION.FOREIGE_AID:
+                await victimizer_player.add_coins(2)
+
+            elif action == OPERATION.COUP:
+                await victimizer_player.sub_coins(7)
+                await victim_player.open_cards(num)
+
+            elif action == OPERATION.DOUBT:
+                if not await victim_player.ask_card(card):  # 质疑成功，没有这张牌
+                    self.action_reocrd.pop()  # 上一步操作失效
+                    continue
+                else:
+                    continue
+
+            elif action == OPERATION.BLOCK:
+                self.action_reocrd.pop()
+                continue
+
+            elif action == OPERATION.OPEN:
+                await victimizer_player.open_cards(num)
+
+            elif action == OPERATION.DUKE:
+                await victimizer_player.add_coins(3)
+
+            elif action == OPERATION.ASSASSIN:
+                await victimizer_player.sub_coins(3)
+                await victim_player.open_cards(num)
+
+            elif action == OPERATION.CONTESSA:
+                self.action_reocrd.pop()
+                continue
+
+            elif action == OPERATION.CAPTAIN:
+                coins_num = await victim_player.get_coins()
+                if coins_num >= 2:
+                    await victimizer_player.add_coins(2)
+                    await victim_player.sub_coins(2)
+                else:
+                    await victimizer_player.add_coins(coins_num)
+                    await victim_player.sub_coins(coins_num)
+
+            # 大使的换牌
+            elif action == OPERATION.AMBASSADOR:
+                cards = await self.__draw_cards()
+                await victimizer_player.set_cards(cards)
+
+            elif action == OPERATION.AMBASSADOR_DELETE:
+                self.identities += await victimizer_player.del_cards(nums)
+
         # 重置标志
-        self.action_chain = []
+        self.action_reocrd.clear()
         # 检查存活人数
         if len(self.players) == 1:
             for qq_number in self.players.keys():
@@ -58,7 +122,13 @@ class Master:
 
     # 处理一般技能
     async def operation_processing(
-        self, victimizer_qq: int, action: OPERATION, victim_qq: int, num=-1
+        self,
+        victimizer_qq: int,
+        action: OPERATION,
+        victim_qq: int,
+        num: Union[int, None] = -1,
+        card: Union[IDENTITY, None] = None,
+        nums: List[int] = [],
     ):
         """
         技能处理
@@ -69,45 +139,16 @@ class Master:
             num: int 这个参数用于处理政变等需要开牌的情况
         @return: None
         """
-        self.action_reocrd.append([victimizer_qq, action, victim_qq])
-
-        victimizer_player = self.players[victimizer_qq]
-        victim_player = self.players[victim_qq]
+        self.action_reocrd.append([victimizer_qq, action, victim_qq, num, card, nums])
 
         # 立即结算的操作
-        if action == OPERATION.INCOME:
-            await victimizer_player.add_coins(1)
-
-        # 需要给出具体受害者的第几张牌的操作
-        elif action == OPERATION.ASSASSIN:
-            await victimizer_player.sub_coins(3)
-            await victim_player.open_cards(num)
-        elif action == OPERATION.COUP:
-            await victimizer_player.sub_coins(7)
-            await victim_player.open_cards(num)
-
-        # 自己选开第几张牌的操作
-        elif action == OPERATION.DOUBT:
-            await victim_player.open_cards(num)
-
-        # 其他非阻止操作，但是只涉及金币的
-        elif action == OPERATION.FOREIGE_AID:
-            await victimizer_player.add_coins(2)
-        elif action == OPERATION.DUKE:
-            await victimizer_player.add_coins(3)
-        elif action == OPERATION.CAPTAIN:
-            coins_num = await victim_player.get_coins()
-            if coins_num >= 2:
-                await victimizer_player.add_coins(2)
-                await victim_player.sub_coins(2)
-            else:
-                await victimizer_player.add_coins(coins_num)
-                await victim_player.sub_coins(coins_num)
-
-        # 大使的换牌
-        elif action == OPERATION.AMBASSADOR:
-            await victimizer_player.set_cards(cards)
-
-        # 关于阻止的处理
-        elif action == OPERATION.DUKE_BLOCK:
-            await player.set_cards()
+        if action in [
+            OPERATION.PASS,
+            OPERATION.DOUBT,
+            OPERATION.INCOME,
+            OPERATION.COUP,
+        ]:
+            await self.__round_init()
+        # 无法立即结算的操作
+        else:
+            return
